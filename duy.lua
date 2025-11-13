@@ -17,22 +17,6 @@ local DUY = {
     AimbotTarget = nil
 }
 
--- Services
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
-local Lighting = game:GetService("Lighting")
-local CoreGui = game:GetService("CoreGui")
-local HttpService = game:GetService("HttpService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local StarterGui = game:GetService("StarterGui")
-local Workspace = game:GetService("Workspace")
-
-local LocalPlayer = Players.LocalPlayer
-local Mouse = LocalPlayer:GetMouse()
-local Camera = Workspace.CurrentCamera
-
 -- Windows XP Color Scheme
 local Colors = {
     WindowBackground = Color3.fromRGB(236, 233, 216),
@@ -48,6 +32,25 @@ local Colors = {
     SelectedTab = Color3.fromRGB(255, 255, 255),
     UnselectedTab = Color3.fromRGB(212, 208, 200)
 }
+
+
+
+
+-- Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local Lighting = game:GetService("Lighting")
+local CoreGui = game:GetService("CoreGui")
+local HttpService = game:GetService("HttpService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local StarterGui = game:GetService("StarterGui")
+local Workspace = game:GetService("Workspace")
+
+local LocalPlayer = Players.LocalPlayer
+local Mouse = LocalPlayer:GetMouse()
+local Camera = Workspace.CurrentCamera
 
 -- Utility Functions
 local function CreateShadow(parent, depth)
@@ -201,8 +204,27 @@ CloseButton.BackgroundColor3 = Color3.fromRGB(220, 100, 100)
 CloseButton.TextSize = 18
 CloseButton.Font = Enum.Font.SourceSansBold
 
+local minimized = false
+local originalSize = UDim2.new(0, 600, 0, 400)
+
 local MinimizeButton = CreateXPButton(TitleBar, "−", UDim2.new(1, -50, 0, 3), UDim2.new(0, 22, 0, 24), function()
-    MainWindow.Visible = not MainWindow.Visible
+    minimized = not minimized
+    
+    if minimized then
+        originalSize = MainWindow.Size
+        TweenService:Create(MainWindow, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Size = UDim2.new(0, MainWindow.Size.X.Offset, 0, 30)
+        }):Play()
+        wait(0.3)
+        if TabContainer then TabContainer.Visible = false end
+        if ContentFrame then ContentFrame.Visible = false end
+    else
+        if TabContainer then TabContainer.Visible = true end
+        if ContentFrame then ContentFrame.Visible = true end
+        TweenService:Create(MainWindow, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Size = originalSize
+        }):Play()
+    end
 end)
 MinimizeButton.TextSize = 18
 MinimizeButton.Font = Enum.Font.SourceSansBold
@@ -234,6 +256,58 @@ UserInputService.InputChanged:Connect(function(input)
     if input == dragInput and dragging then
         local delta = input.Position - dragStart
         MainWindow.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+-- Resizing Functionality
+local resizing = false
+local resizeStart, resizeStartSize
+
+local ResizeHandle = Instance.new("Frame")
+ResizeHandle.Name = "ResizeHandle"
+ResizeHandle.Size = UDim2.new(0, 15, 0, 15)
+ResizeHandle.Position = UDim2.new(1, -15, 1, -15)
+ResizeHandle.BackgroundColor3 = Colors.ButtonShadow
+ResizeHandle.BorderSizePixel = 0
+ResizeHandle.Parent = MainWindow
+
+local ResizeTriangle1 = Instance.new("Frame")
+ResizeTriangle1.Size = UDim2.new(0, 10, 0, 2)
+ResizeTriangle1.Position = UDim2.new(0, 3, 1, -3)
+ResizeTriangle1.BackgroundColor3 = Colors.ButtonHighlight
+ResizeTriangle1.BorderSizePixel = 0
+ResizeTriangle1.Rotation = 45
+ResizeTriangle1.Parent = ResizeHandle
+
+local ResizeTriangle2 = Instance.new("Frame")
+ResizeTriangle2.Size = UDim2.new(0, 10, 0, 2)
+ResizeTriangle2.Position = UDim2.new(0, 6, 1, -6)
+ResizeTriangle2.BackgroundColor3 = Colors.ButtonHighlight
+ResizeTriangle2.BorderSizePixel = 0
+ResizeTriangle2.Rotation = 45
+ResizeTriangle2.Parent = ResizeHandle
+
+ResizeHandle.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        resizing = true
+        resizeStart = input.Position
+        resizeStartSize = MainWindow.Size
+        
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                resizing = false
+            end
+        end)
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if resizing and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - resizeStart
+        local newWidth = math.max(400, resizeStartSize.X.Offset + delta.X)
+        local newHeight = math.max(300, resizeStartSize.Y.Offset + delta.Y)
+        MainWindow.Size = UDim2.new(0, newWidth, 0, newHeight)
+        originalSize = MainWindow.Size
     end
 end)
 
@@ -322,13 +396,22 @@ end
 -- Commands Tab
 local CommandsTab = CreateTab("Commands", nil)
 
+local CommandsScrollContainer = Instance.new("Frame")
+CommandsScrollContainer.Size = UDim2.new(1, 0, 1, -35)
+CommandsScrollContainer.Position = UDim2.new(0, 0, 0, 0)
+CommandsScrollContainer.BackgroundTransparency = 1
+CommandsScrollContainer.ClipsDescendants = true
+CommandsScrollContainer.Parent = CommandsTab
+
 local CommandsList = Instance.new("Frame")
-CommandsList.Size = UDim2.new(1, -10, 0, 0)
+CommandsList.Size = UDim2.new(1, -10, 1, 0)
+CommandsList.Position = UDim2.new(0, 5, 0, 5)
 CommandsList.BackgroundTransparency = 1
-CommandsList.Parent = CommandsTab
+CommandsList.Parent = CommandsScrollContainer
 
 local CommandsListLayout = Instance.new("UIListLayout")
 CommandsListLayout.Padding = UDim.new(0, 2)
+CommandsListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 CommandsListLayout.Parent = CommandsList
 
 local CommandInput = Instance.new("TextBox")
@@ -342,6 +425,7 @@ CommandInput.Text = ""
 CommandInput.TextColor3 = Colors.Text
 CommandInput.TextSize = 14
 CommandInput.TextXAlignment = Enum.TextXAlignment.Left
+CommandInput.ZIndex = 10
 CommandInput.Parent = CommandsTab
 
 -- Script Executor Tab
@@ -589,6 +673,330 @@ local GameScriptsLayout = Instance.new("UIListLayout")
 GameScriptsLayout.Padding = UDim.new(0, 5)
 GameScriptsLayout.Parent = GameScriptsList
 
+function DUY:LoadGameScripts()
+    print("[DUY ScriptBlox] Starting to load scripts...")
+    
+    local gameId = game.PlaceId
+    print("[DUY ScriptBlox] Game PlaceId:", gameId)
+    
+    local gameName = "Unknown"
+    pcall(function()
+        gameName = game:GetService("MarketplaceService"):GetProductInfo(gameId).Name
+        print("[DUY ScriptBlox] Game Name:", gameName)
+    end)
+    
+    -- Encode the game name manually (replace spaces with %20)
+    local encodedName = gameName:gsub(" ", "%%20"):gsub("[^%w%%]", function(c)
+        return string.format("%%%02X", string.byte(c))
+    end)
+    
+    -- Try to fetch game-specific scripts first
+    print("[DUY ScriptBlox] Attempting to fetch game-specific scripts...")
+    local success, response = pcall(function()
+        local url = "https://scriptblox.com/api/script/fetch?q=" .. encodedName .. "&max=20"
+        print("[DUY ScriptBlox] URL:", url)
+        return game:HttpGet(url)
+    end)
+    
+    if success and response then
+        print("[DUY ScriptBlox] HTTP request successful!")
+        print("[DUY ScriptBlox] Response length:", #response)
+
+        local parseSuccess, data = pcall(function()
+            return game:GetService("HttpService"):JSONDecode(response)
+        end)
+        
+        if parseSuccess and data then
+            print("[DUY ScriptBlox] JSON parsed successfully!")
+            
+            if data and data.result then
+                print("[DUY ScriptBlox] Has result field")
+                
+                if data.result.scripts then
+                    print("[DUY ScriptBlox] Scripts found:", #data.result.scripts)
+                    
+                    if #data.result.scripts > 0 then
+                        for i, scriptData in pairs(data.result.scripts) do
+                            print("[DUY ScriptBlox] Creating button for script:", i, scriptData.title or "Untitled")
+                            DUY:CreateGameScriptButton(scriptData)
+                        end
+                        print("[DUY ScriptBlox] Game-specific scripts loaded!")
+                        return
+                    else
+                        print("[DUY ScriptBlox] No scripts in array")
+                    end
+                else
+                    print("[DUY ScriptBlox] No scripts field in result")
+                end
+            else
+                print("[DUY ScriptBlox] No result field in data")
+            end
+        else
+            warn("[DUY ScriptBlox] JSON parse failed:", tostring(data))
+        end
+    else
+        warn("[DUY ScriptBlox] HTTP request failed:", tostring(response))
+    end
+    
+    -- If no game-specific scripts found, load universal scripts
+    print("[DUY ScriptBlox] Loading universal scripts as fallback...")
+    local success2, response2 = pcall(function()
+        local url = "https://scriptblox.com/api/script/fetch?page=1&max=20"
+        print("[DUY ScriptBlox] Universal URL:", url)
+        return game:HttpGet(url)
+    end)
+    
+    if success2 and response2 then
+        print("[DUY ScriptBlox] Universal HTTP request successful!")
+        
+        local parseSuccess2, data2 = pcall(function()
+            return game:GetService("HttpService"):JSONDecode(response2)
+        end)
+        
+        if parseSuccess2 and data2 then
+            print("[DUY ScriptBlox] Universal JSON parsed successfully!")
+            
+            if data2 and data2.result and data2.result.scripts then
+                print("[DUY ScriptBlox] Universal scripts found:", #data2.result.scripts)
+                
+                -- Add a label indicating these are universal scripts
+                local infoLabel = Instance.new("TextLabel")
+                infoLabel.Size = UDim2.new(1, 0, 0, 30)
+                infoLabel.BackgroundColor3 = Color3.fromRGB(255, 255, 200)
+                infoLabel.BorderColor3 = Colors.ButtonShadow
+                infoLabel.BorderSizePixel = 1
+                infoLabel.Font = Enum.Font.SourceSansBold
+                infoLabel.Text = "Showing popular universal scripts:"
+                infoLabel.TextColor3 = Colors.Text
+                infoLabel.TextSize = 12
+                infoLabel.TextWrapped = true
+                infoLabel.Parent = GameScriptsList
+                
+                for i, scriptData in pairs(data2.result.scripts) do
+                    print("[DUY ScriptBlox] Creating universal script button:", i, scriptData.title or "Untitled")
+                    DUY:CreateGameScriptButton(scriptData)
+                end
+                
+                print("[DUY ScriptBlox] Universal scripts loaded!")
+            else
+                warn("[DUY ScriptBlox] No scripts in universal response")
+            end
+        else
+            warn("[DUY ScriptBlox] Universal JSON parse failed:", tostring(data2))
+        end
+    else
+        warn("[DUY ScriptBlox] Universal HTTP request failed:", tostring(response2))
+        
+        -- Show error in UI
+        local errorLabel = Instance.new("TextLabel")
+        errorLabel.Size = UDim2.new(1, -20, 0, 50)
+        errorLabel.Position = UDim2.new(0, 10, 0, 10)
+        errorLabel.BackgroundTransparency = 1
+        errorLabel.Font = Enum.Font.SourceSans
+        errorLabel.Text = "Failed to load scripts from ScriptBlox.\nCheck console for details."
+        errorLabel.TextColor3 = Color3.fromRGB(200, 50, 50)
+        errorLabel.TextSize = 14
+        errorLabel.TextWrapped = true
+        errorLabel.Parent = GameScriptsList
+    end
+end
+
+function DUY:ShowConfirmationDialog(scriptData)
+    local confirmFrame = Instance.new("Frame")
+    confirmFrame.Size = UDim2.new(0, 400, 0, 180)
+    confirmFrame.Position = UDim2.new(0.5, -200, 0.5, -90)
+    confirmFrame.BackgroundColor3 = Colors.WindowBackground
+    confirmFrame.BorderSizePixel = 0
+    confirmFrame.ZIndex = 100
+    confirmFrame.Parent = ScreenGui
+    
+    local confirmBorder = Instance.new("Frame")
+    confirmBorder.Size = UDim2.new(1, 6, 1, 6)
+    confirmBorder.Position = UDim2.new(0, -3, 0, -3)
+    confirmBorder.BackgroundColor3 = Colors.WindowBorder
+    confirmBorder.BorderSizePixel = 0
+    confirmBorder.ZIndex = 99
+    confirmBorder.Parent = confirmFrame
+    
+    local confirmTitle = Instance.new("Frame")
+    confirmTitle.Size = UDim2.new(1, 0, 0, 30)
+    confirmTitle.BackgroundColor3 = Colors.TitleBar
+    confirmTitle.BorderSizePixel = 0
+    confirmTitle.ZIndex = 100
+    confirmTitle.Parent = confirmFrame
+    
+    local confirmGradient = Instance.new("UIGradient")
+    confirmGradient.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 88, 238)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(53, 147, 255))
+    }
+    confirmGradient.Rotation = 90
+    confirmGradient.Parent = confirmTitle
+    
+    local confirmTitleText = Instance.new("TextLabel")
+    confirmTitleText.Size = UDim2.new(1, -10, 1, 0)
+    confirmTitleText.Position = UDim2.new(0, 8, 0, 0)
+    confirmTitleText.BackgroundTransparency = 1
+    confirmTitleText.Font = Enum.Font.SourceSansBold
+    confirmTitleText.Text = "⚠ Execute Script?"
+    confirmTitleText.TextColor3 = Colors.TitleText
+    confirmTitleText.TextSize = 14
+    confirmTitleText.TextXAlignment = Enum.TextXAlignment.Left
+    confirmTitleText.ZIndex = 101
+    confirmTitleText.Parent = confirmTitle
+    
+    local confirmMessage = Instance.new("TextLabel")
+    confirmMessage.Size = UDim2.new(1, -20, 0, 90)
+    confirmMessage.Position = UDim2.new(0, 10, 0, 40)
+    confirmMessage.BackgroundTransparency = 1
+    confirmMessage.Font = Enum.Font.SourceSans
+    
+    local gameName = scriptData.game and scriptData.game.name or "Universal"
+    local scriptOwner = scriptData.owner and scriptData.owner.username or "Unknown"
+    
+    confirmMessage.Text = "Are you sure you want to execute this script?\n\nTitle: " .. (scriptData.title or "Unknown Script") .. "\nGame: " .. gameName .. "\nBy: " .. scriptOwner .. "\n\nOnly execute scripts from trusted sources!"
+    confirmMessage.TextColor3 = Colors.Text
+    confirmMessage.TextSize = 13
+    confirmMessage.TextWrapped = true
+    confirmMessage.TextYAlignment = Enum.TextYAlignment.Top
+    confirmMessage.ZIndex = 100
+    confirmMessage.Parent = confirmFrame
+    
+    local yesBtn = CreateXPButton(confirmFrame, "Yes, Execute", UDim2.new(0, 10, 1, -35), UDim2.new(0, 120, 0, 25), function()
+        confirmFrame:Destroy()
+        
+        -- Fetch and execute the script
+        local scriptUrl = scriptData.script
+        if not scriptUrl then
+            warn("[DUY] No script URL found")
+            return
+        end
+        
+        -- If it's a ScriptBlox URL, we might need to fetch the raw script
+        if scriptUrl:find("scriptblox.com") and not scriptUrl:find("/raw/") then
+            -- Try to get the slug and fetch the raw script
+            if scriptData.slug then
+                scriptUrl = "https://rawscripts.net/raw/" .. scriptData.slug
+            end
+        end
+        
+        local success, scriptContent = pcall(function()
+            return game:HttpGet(scriptUrl)
+        end)
+        
+        if success and scriptContent then
+            local execSuccess, execErr = pcall(function()
+                loadstring(scriptContent)()
+            end)
+            
+            if execSuccess then
+                print("[DUY] Successfully executed:", scriptData.title)
+            else
+                warn("[DUY] Script execution error:", execErr)
+            end
+        else
+            warn("[DUY] Failed to fetch script content from:", scriptUrl)
+        end
+    end)
+    yesBtn.ZIndex = 100
+    yesBtn.BackgroundColor3 = Color3.fromRGB(100, 200, 100)
+    
+    local noBtn = CreateXPButton(confirmFrame, "Cancel", UDim2.new(1, -130, 1, -35), UDim2.new(0, 120, 0, 25), function()
+        confirmFrame:Destroy()
+    end)
+    noBtn.ZIndex = 100
+    noBtn.BackgroundColor3 = Color3.fromRGB(220, 100, 100)
+end
+
+function DUY:CreateGameScriptButton(scriptData)
+    local scriptFrame = Instance.new("Frame")
+    scriptFrame.Size = UDim2.new(1, 0, 0, 100)
+    scriptFrame.BackgroundColor3 = Colors.ButtonFace
+    scriptFrame.BorderColor3 = Colors.ButtonShadow
+    scriptFrame.BorderSizePixel = 1
+    scriptFrame.Parent = GameScriptsList
+    
+    local scriptTitle = Instance.new("TextLabel")
+    scriptTitle.Size = UDim2.new(1, -95, 0, 25)
+    scriptTitle.Position = UDim2.new(0, 5, 0, 5)
+    scriptTitle.BackgroundTransparency = 1
+    scriptTitle.Font = Enum.Font.SourceSansBold
+    scriptTitle.Text = scriptData.title or "Untitled Script"
+    scriptTitle.TextColor3 = Colors.Text
+    scriptTitle.TextSize = 14
+    scriptTitle.TextXAlignment = Enum.TextXAlignment.Left
+    scriptTitle.TextTruncate = Enum.TextTruncate.AtEnd
+    scriptTitle.Parent = scriptFrame
+    
+    local scriptGame = Instance.new("TextLabel")
+    scriptGame.Size = UDim2.new(1, -95, 0, 20)
+    scriptGame.Position = UDim2.new(0, 5, 0, 30)
+    scriptGame.BackgroundTransparency = 1
+    scriptGame.Font = Enum.Font.SourceSans
+    scriptGame.Text = "Game: " .. (scriptData.game and scriptData.game.name or "Universal")
+    scriptGame.TextColor3 = Color3.fromRGB(100, 100, 100)
+    scriptGame.TextSize = 12
+    scriptGame.TextXAlignment = Enum.TextXAlignment.Left
+    scriptGame.TextTruncate = Enum.TextTruncate.AtEnd
+    scriptGame.Parent = scriptFrame
+    
+    local scriptViews = Instance.new("TextLabel")
+    scriptViews.Size = UDim2.new(1, -95, 0, 15)
+    scriptViews.Position = UDim2.new(0, 5, 0, 50)
+    scriptViews.BackgroundTransparency = 1
+    scriptViews.Font = Enum.Font.SourceSans
+    scriptViews.Text = "👁 " .. (scriptData.views or 0) .. " views"
+    scriptViews.TextColor3 = Color3.fromRGB(80, 80, 80)
+    scriptViews.TextSize = 11
+    scriptViews.TextXAlignment = Enum.TextXAlignment.Left
+    scriptViews.Parent = scriptFrame
+    
+    local verified = Instance.new("TextLabel")
+    verified.Size = UDim2.new(1, -95, 0, 15)
+    verified.Position = UDim2.new(0, 5, 0, 65)
+    verified.BackgroundTransparency = 1
+    verified.Font = Enum.Font.SourceSans
+    
+    local isVerified = scriptData.verified == true or scriptData.verified == 1
+    local isUniversal = scriptData.isUniversal == true or scriptData.isUniversal == 1
+    
+    local badges = {}
+    if isVerified then
+        table.insert(badges, "✓ Verified")
+    end
+    if isUniversal then
+        table.insert(badges, "🌐 Universal")
+    end
+    if scriptData.key == true or scriptData.key == 1 then
+        table.insert(badges, "🔑 Key")
+    end
+    
+    verified.Text = table.concat(badges, " | ")
+    verified.TextColor3 = isVerified and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(100, 100, 100)
+    verified.TextSize = 10
+    verified.TextXAlignment = Enum.TextXAlignment.Left
+    verified.Parent = scriptFrame
+    
+    local ownerLabel = Instance.new("TextLabel")
+    ownerLabel.Size = UDim2.new(1, -95, 0, 15)
+    ownerLabel.Position = UDim2.new(0, 5, 0, 80)
+    ownerLabel.BackgroundTransparency = 1
+    ownerLabel.Font = Enum.Font.SourceSansItalic
+    ownerLabel.Text = "By: " .. (scriptData.owner and scriptData.owner.username or "Unknown")
+    ownerLabel.TextColor3 = Color3.fromRGB(100, 100, 100)
+    ownerLabel.TextSize = 10
+    ownerLabel.TextXAlignment = Enum.TextXAlignment.Left
+    ownerLabel.TextTruncate = Enum.TextTruncate.AtEnd
+    ownerLabel.Parent = scriptFrame
+    
+    local executeBtn = CreateXPButton(scriptFrame, "Execute", UDim2.new(1, -85, 0, 5), UDim2.new(0, 75, 0, 90), function()
+        DUY:ShowConfirmationDialog(scriptData)
+    end)
+    
+    GameScriptsList.Size = UDim2.new(1, -10, 0, GameScriptsLayout.AbsoluteContentSize.Y)
+    GameScriptsTab.CanvasSize = UDim2.new(1, 0, 0, GameScriptsLayout.AbsoluteContentSize.Y + 10)
+end
+
 -- Settings Tab
 local SettingsTab = CreateTab("Settings", nil)
 
@@ -633,8 +1041,18 @@ prefixInput.FocusLost:Connect(function()
         DUY.Prefix = prefixInput.Text
     end
 end)
+CreateToggle(SettingsList, "Anti-Kick Protection", true, function(enabled)
+    DUY.Settings.AntiKick = enabled
+    print("[DUY] Anti-Kick:", enabled and "Enabled" or "Disabled")
+end)
 
--- Command System
+CreateToggle(SettingsList, "Anti-Ban Protection", true, function(enabled)
+    DUY.Settings.AntiBan = enabled
+    print("[DUY] Anti-Ban:", enabled and "Enabled" or "Disabled")
+end)
+
+
+
 function DUY:AddCommand(name, aliases, description, callback)
     local cmd = {
         Name = name:lower(),
@@ -646,7 +1064,7 @@ function DUY:AddCommand(name, aliases, description, callback)
     
     -- Add to commands list UI
     local cmdFrame = Instance.new("Frame")
-    cmdFrame.Size = UDim2.new(1, 0, 0, 60)
+    cmdFrame.Size = UDim2.new(1, -20, 0, 60)
     cmdFrame.BackgroundColor3 = Colors.ButtonFace
     cmdFrame.BorderColor3 = Colors.ButtonShadow
     cmdFrame.BorderSizePixel = 1
@@ -676,8 +1094,12 @@ function DUY:AddCommand(name, aliases, description, callback)
     cmdDesc.TextWrapped = true
     cmdDesc.Parent = cmdFrame
     
-    CommandsList.Size = UDim2.new(1, -10, 0, CommandsListLayout.AbsoluteContentSize.Y)
-    CommandsTab.CanvasSize = UDim2.new(1, 0, 0, CommandsListLayout.AbsoluteContentSize.Y + 40)
+    -- Update canvas size
+    spawn(function()
+        wait()
+        CommandsList.Size = UDim2.new(1, -10, 0, CommandsListLayout.AbsoluteContentSize.Y)
+        CommandsTab.CanvasSize = UDim2.new(1, 0, 0, CommandsListLayout.AbsoluteContentSize.Y + 45)
+    end)
 end
 
 function DUY:ExecuteCommand(input)
@@ -715,9 +1137,15 @@ function DUY:ExecuteCommand(input)
 end
 
 CommandInput.FocusLost:Connect(function(enterPressed)
-    if enterPressed and CommandInput.Text ~= "" then
-        DUY:ExecuteCommand(CommandInput.Text)
-        CommandInput.Text = ""
+    if enterPressed then
+        local text = CommandInput.Text
+        if text ~= "" then
+            print("[DUY] Executing command:", text)
+            task.spawn(function()
+                DUY:ExecuteCommand(text)
+            end)
+            CommandInput.Text = ""
+        end
     end
 end)
 
@@ -901,84 +1329,150 @@ function DUY:DisableESP()
     self.ESPObjects = {}
 end
 
-Players.PlayerAdded:Connect(function(player)
-    if DUY.Settings.ESP then
-        DUY:CreateESP(player)
-    end
+pcall(function()
+    local PlayersService = game:GetService("Players")
+    
+    PlayersService.PlayerAdded:Connect(function(player)
+        if DUY.Settings.ESP then
+            DUY:CreateESP(player)
+        end
+    end)
+    
+    PlayersService.PlayerRemoving:Connect(function(player)
+        if DUY.ESPObjects[player] then
+            pcall(function()
+                DUY.ESPObjects[player]:Destroy()
+            end)
+            DUY.ESPObjects[player] = nil
+        end
+    end)
 end)
 
-Players.PlayerRemoving:Connect(function(player)
-    if DUY.ESPObjects[player] then
-        DUY.ESPObjects[player]:Destroy()
-        DUY.ESPObjects[player] = nil
-    end
-end)
-
--- Remote Spy System
+-- Unified Hook System (Anti-Kick, Anti-Ban, Remote Spy)
 local RemoteLogs = {}
+DUY.Settings.RemoteSpy = true
+DUY.Settings.AntiKick = true
+DUY.Settings.AntiBan = true
 
-local oldNamecall
-oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
-    local method = getnamecallmethod()
-    local args = {...}
+local function LogRemote(remote, method, args)
+    if not DUY.Settings.RemoteSpy then return end
+    if not remote or not remote.Name then return end
     
-    if (method == "FireServer" or method == "InvokeServer") and DUY.Settings.RemoteSpy then
-        local log = {
-            Remote = self,
-            Method = method,
-            Args = args,
-            Time = os.date("%H:%M:%S")
-        }
-        table.insert(RemoteLogs, log)
-        
-        -- Add to UI
-        local logFrame = Instance.new("Frame")
-        logFrame.Size = UDim2.new(1, -10, 0, 80)
-        logFrame.BackgroundColor3 = Colors.ButtonFace
-        logFrame.BorderColor3 = Colors.ButtonShadow
-        logFrame.BorderSizePixel = 1
-        logFrame.Parent = RemoteList
-        
-        local remoteName = Instance.new("TextLabel")
-        remoteName.Size = UDim2.new(1, -10, 0, 20)
-        remoteName.Position = UDim2.new(0, 5, 0, 5)
-        remoteName.BackgroundTransparency = 1
-        remoteName.Font = Enum.Font.SourceSansBold
-        remoteName.Text = self.Name .. " (" .. method .. ")"
-        remoteName.TextColor3 = Colors.Text
-        remoteName.TextSize = 13
-        remoteName.TextXAlignment = Enum.TextXAlignment.Left
-        remoteName.Parent = logFrame
-        
-        local timeLabel = Instance.new("TextLabel")
-        timeLabel.Size = UDim2.new(1, -10, 0, 15)
-        timeLabel.Position = UDim2.new(0, 5, 0, 25)
-        timeLabel.BackgroundTransparency = 1
-        timeLabel.Font = Enum.Font.SourceSans
-        timeLabel.Text = "Time: " .. log.Time
-        timeLabel.TextColor3 = Color3.fromRGB(100, 100, 100)
-        timeLabel.TextSize = 11
-        timeLabel.TextXAlignment = Enum.TextXAlignment.Left
-        timeLabel.Parent = logFrame
-        
-        local pathLabel = Instance.new("TextLabel")
-        pathLabel.Size = UDim2.new(1, -10, 0, 35)
-        pathLabel.Position = UDim2.new(0, 5, 0, 40)
-        pathLabel.BackgroundTransparency = 1
-        pathLabel.Font = Enum.Font.SourceSans
-        pathLabel.Text = "Path: " .. self:GetFullName()
-        pathLabel.TextColor3 = Color3.fromRGB(80, 80, 80)
-        pathLabel.TextSize = 10
-        pathLabel.TextXAlignment = Enum.TextXAlignment.Left
-        pathLabel.TextYAlignment = Enum.TextYAlignment.Top
-        pathLabel.TextWrapped = true
-        pathLabel.Parent = logFrame
-        
-        RemoteList.CanvasSize = UDim2.new(1, 0, 0, RemoteListLayout.AbsoluteContentSize.Y)
-    end
-    
-    return oldNamecall(self, ...)
-end))
+    spawn(function()
+        pcall(function()
+            print("[DUY RemoteSpy] Caught:", remote.Name, method)
+            
+            local log = {
+                Remote = remote,
+                Method = method,
+                Args = args,
+                Time = os.date("%H:%M:%S")
+            }
+            table.insert(RemoteLogs, log)
+            
+            local logFrame = Instance.new("Frame")
+            logFrame.Size = UDim2.new(1, -10, 0, 80)
+            logFrame.BackgroundColor3 = Colors.ButtonFace
+            logFrame.BorderColor3 = Colors.ButtonShadow
+            logFrame.BorderSizePixel = 1
+            logFrame.Parent = RemoteList
+            
+            local remoteName = Instance.new("TextLabel")
+            remoteName.Size = UDim2.new(1, -10, 0, 20)
+            remoteName.Position = UDim2.new(0, 5, 0, 5)
+            remoteName.BackgroundTransparency = 1
+            remoteName.Font = Enum.Font.SourceSansBold
+            remoteName.Text = remote.Name .. " (" .. method .. ")"
+            remoteName.TextColor3 = Colors.Text
+            remoteName.TextSize = 13
+            remoteName.TextXAlignment = Enum.TextXAlignment.Left
+            remoteName.Parent = logFrame
+            
+            local timeLabel = Instance.new("TextLabel")
+            timeLabel.Size = UDim2.new(1, -10, 0, 15)
+            timeLabel.Position = UDim2.new(0, 5, 0, 25)
+            timeLabel.BackgroundTransparency = 1
+            timeLabel.Font = Enum.Font.SourceSans
+            timeLabel.Text = "Time: " .. log.Time
+            timeLabel.TextColor3 = Color3.fromRGB(100, 100, 100)
+            timeLabel.TextSize = 11
+            timeLabel.TextXAlignment = Enum.TextXAlignment.Left
+            timeLabel.Parent = logFrame
+            
+            local pathLabel = Instance.new("TextLabel")
+            pathLabel.Size = UDim2.new(1, -10, 0, 35)
+            pathLabel.Position = UDim2.new(0, 5, 0, 40)
+            pathLabel.BackgroundTransparency = 1
+            pathLabel.Font = Enum.Font.SourceSans
+            pathLabel.Text = "Path: " .. remote:GetFullName()
+            pathLabel.TextColor3 = Color3.fromRGB(80, 80, 80)
+            pathLabel.TextSize = 10
+            pathLabel.TextXAlignment = Enum.TextXAlignment.Left
+            pathLabel.TextYAlignment = Enum.TextYAlignment.Top
+            pathLabel.TextWrapped = true
+            pathLabel.Parent = logFrame
+            
+            task.wait()
+            RemoteList.CanvasSize = UDim2.new(1, 0, 0, RemoteListLayout.AbsoluteContentSize.Y)
+        end)
+    end)
+end
+
+-- Anti-AFK
+if LocalPlayer then
+    LocalPlayer.Idled:Connect(function()
+        if DUY.Settings.AntiKick then
+            local VirtualUser = game:GetService("VirtualUser")
+            VirtualUser:CaptureController()
+            VirtualUser:ClickButton2(Vector2.new())
+        end
+    end)
+end
+
+-- Single unified hook for everything
+if hookmetamethod then
+    pcall(function()
+        local oldmt
+        oldmt = hookmetamethod(game, "__namecall", function(self, ...)
+            local method = getnamecallmethod()
+            local args = {...}
+            
+            -- Anti-Kick: Block kick attempts
+            if DUY.Settings.AntiKick and method == "Kick" then
+                warn("[DUY] Blocked kick attempt!")
+                return
+            end
+            
+            -- Anti-Ban: Block suspicious remotes
+            if DUY.Settings.AntiBan and (method == "FireServer" or method == "InvokeServer") then
+                if self and self.Name then
+                    local remoteName = self.Name:lower()
+                    if remoteName:find("ban") or remoteName:find("anticheat") or remoteName:find("detection") then
+                        warn("[DUY] Blocked potential ban remote:", self.Name)
+                        return
+                    end
+                end
+            end
+            
+            -- Remote Spy: Log remotes
+            if method == "FireServer" or method == "InvokeServer" then
+                spawn(function()
+                    pcall(function()
+                        LogRemote(self, method, args)
+                    end)
+                end)
+            end
+            
+            return oldmt(self, ...)
+        end)
+        print("[DUY] Unified protection system enabled!")
+        print("[DUY] Anti-Kick: Enabled")
+        print("[DUY] Anti-Ban: Enabled")
+        print("[DUY] Remote Spy: Enabled")
+    end)
+else
+    warn("[DUY] Protection features not available (hookmetamethod not found)")
+end
 
 -- FE "Bypass" Workarounds
 local FEBypass = {}
@@ -1438,10 +1932,25 @@ DUY:AddCommand("clicktp", {"ctp"}, "Toggle click to teleport (hold CTRL and clic
         end
     end
 end)
+DUY:AddCommand("antikick", {"ak"}, "Toggle anti-kick protection", function(args)
+    DUY.Settings.AntiKick = not DUY.Settings.AntiKick
+    print("[DUY] Anti-Kick:", DUY.Settings.AntiKick and "Enabled" or "Disabled")
+end)
+
+DUY:AddCommand("antiban", {"ab"}, "Toggle anti-ban protection", function(args)
+    DUY.Settings.AntiBan = not DUY.Settings.AntiBan
+    print("[DUY] Anti-Ban:", DUY.Settings.AntiBan and "Enabled" or "Disabled")
+end)
 
 -- Activate first tab
 if #Tabs > 0 then
-    Tabs[1].Button.MouseButton1Click:Fire()
+    for _, tab in pairs(Tabs) do
+        tab.Button.BackgroundColor3 = Colors.UnselectedTab
+        tab.Content.Visible = false
+    end
+    Tabs[1].Button.BackgroundColor3 = Colors.SelectedTab
+    Tabs[1].Content.Visible = true
+    CurrentTab = Tabs[1].Content
 end
 
 -- Notification System
@@ -1485,6 +1994,12 @@ TweenService:Create(NotificationFrame, TweenInfo.new(0.5, Enum.EasingStyle.Back,
 
 -- Print confirmation
 print("[DUY] Dusty's Universal Yield v1.0.0 loaded successfully!")
+-- Load game-specific scripts
+spawn(function()
+    wait(2)
+    print("[DUY] Loading game scripts from ScriptBlox...")
+    DUY:LoadGameScripts()
+end)
 print("[DUY] Prefix: " .. DUY.Prefix)
 print("[DUY] Commands loaded: " .. #DUY.Commands)
 print("[DUY] Type '" .. DUY.Prefix .. "help' for a list of commands (coming soon!)")
