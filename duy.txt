@@ -1,0 +1,1497 @@
+--[[
+    Dusty's Universal Yield
+    Version 1.0.0
+    The most comprehensive universal script hub
+    Windows XP Styled UI
+]]
+
+local DUY = {
+    Version = "1.0.0",
+    Prefix = ";",
+    Commands = {},
+    Settings = {
+        Noclip = false,
+        Fly = false,
+        InfiniteJump = false,
+        ESP = false,
+        Aimbot = false,
+        WalkSpeed = 16,
+        JumpPower = 50,
+        FOV = 70
+    },
+    Connections = {},
+    ESPObjects = {},
+    AimbotTarget = nil
+}
+
+-- Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local Lighting = game:GetService("Lighting")
+local CoreGui = game:GetService("CoreGui")
+local HttpService = game:GetService("HttpService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local StarterGui = game:GetService("StarterGui")
+local Workspace = game:GetService("Workspace")
+
+local LocalPlayer = Players.LocalPlayer
+local Mouse = LocalPlayer:GetMouse()
+local Camera = Workspace.CurrentCamera
+
+-- Windows XP Color Scheme
+local Colors = {
+    WindowBackground = Color3.fromRGB(236, 233, 216),
+    WindowBorder = Color3.fromRGB(0, 84, 227),
+    TitleBar = Color3.fromRGB(0, 84, 227),
+    TitleBarInactive = Color3.fromRGB(128, 128, 128),
+    ButtonFace = Color3.fromRGB(236, 233, 216),
+    ButtonHighlight = Color3.fromRGB(255, 255, 255),
+    ButtonShadow = Color3.fromRGB(172, 168, 153),
+    ButtonDarkShadow = Color3.fromRGB(113, 111, 100),
+    Text = Color3.fromRGB(0, 0, 0),
+    TitleText = Color3.fromRGB(255, 255, 255),
+    SelectedTab = Color3.fromRGB(255, 255, 255),
+    UnselectedTab = Color3.fromRGB(212, 208, 200)
+}
+
+-- Utility Functions
+local function CreateShadow(parent, depth)
+    depth = depth or 2
+    
+    local shadow = Instance.new("Frame")
+    shadow.Name = "Shadow"
+    shadow.Size = UDim2.new(1, depth, 1, depth)
+    shadow.Position = UDim2.new(0, depth, 0, depth)
+    shadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    shadow.BackgroundTransparency = 0.5
+    shadow.BorderSizePixel = 0
+    shadow.ZIndex = parent.ZIndex - 1
+    shadow.Parent = parent.Parent
+    
+    return shadow
+end
+
+local function CreateXPButton(parent, text, position, size, callback)
+    local button = Instance.new("TextButton")
+    button.Size = size or UDim2.new(0, 75, 0, 23)
+    button.Position = position
+    button.BackgroundColor3 = Colors.ButtonFace
+    button.BorderSizePixel = 0
+    button.Font = Enum.Font.SourceSans
+    button.Text = text
+    button.TextColor3 = Colors.Text
+    button.TextSize = 14
+    button.Parent = parent
+    
+    -- XP Button Border
+    local topBorder = Instance.new("Frame")
+    topBorder.Size = UDim2.new(1, 0, 0, 1)
+    topBorder.Position = UDim2.new(0, 0, 0, 0)
+    topBorder.BackgroundColor3 = Colors.ButtonHighlight
+    topBorder.BorderSizePixel = 0
+    topBorder.Parent = button
+    
+    local leftBorder = Instance.new("Frame")
+    leftBorder.Size = UDim2.new(0, 1, 1, 0)
+    leftBorder.Position = UDim2.new(0, 0, 0, 0)
+    leftBorder.BackgroundColor3 = Colors.ButtonHighlight
+    leftBorder.BorderSizePixel = 0
+    leftBorder.Parent = button
+    
+    local bottomBorder = Instance.new("Frame")
+    bottomBorder.Size = UDim2.new(1, 0, 0, 1)
+    bottomBorder.Position = UDim2.new(0, 0, 1, -1)
+    bottomBorder.BackgroundColor3 = Colors.ButtonDarkShadow
+    bottomBorder.BorderSizePixel = 0
+    bottomBorder.Parent = button
+    
+    local rightBorder = Instance.new("Frame")
+    rightBorder.Size = UDim2.new(0, 1, 1, 0)
+    rightBorder.Position = UDim2.new(1, -1, 0, 0)
+    rightBorder.BackgroundColor3 = Colors.ButtonDarkShadow
+    rightBorder.BorderSizePixel = 0
+    rightBorder.Parent = button
+    
+    local innerBottomBorder = Instance.new("Frame")
+    innerBottomBorder.Size = UDim2.new(1, -2, 0, 1)
+    innerBottomBorder.Position = UDim2.new(0, 1, 1, -2)
+    innerBottomBorder.BackgroundColor3 = Colors.ButtonShadow
+    innerBottomBorder.BorderSizePixel = 0
+    innerBottomBorder.Parent = button
+    
+    local innerRightBorder = Instance.new("Frame")
+    innerRightBorder.Size = UDim2.new(0, 1, 1, -2)
+    innerRightBorder.Position = UDim2.new(1, -2, 0, 1)
+    innerRightBorder.BackgroundColor3 = Colors.ButtonShadow
+    innerRightBorder.BorderSizePixel = 0
+    innerRightBorder.Parent = button
+    
+    if callback then
+        button.MouseButton1Click:Connect(callback)
+    end
+    
+    return button
+end
+
+-- Main GUI Creation
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "DustysUniversalYield"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+-- Protection
+if gethui then
+    ScreenGui.Parent = gethui()
+elseif syn and syn.protect_gui then
+    syn.protect_gui(ScreenGui)
+    ScreenGui.Parent = CoreGui
+else
+    ScreenGui.Parent = CoreGui
+end
+
+-- Main Window Frame
+local MainWindow = Instance.new("Frame")
+MainWindow.Name = "MainWindow"
+MainWindow.Size = UDim2.new(0, 600, 0, 400)
+MainWindow.Position = UDim2.new(1, -620, 1, -420) -- Bottom right corner
+MainWindow.BackgroundColor3 = Colors.WindowBackground
+MainWindow.BorderSizePixel = 0
+MainWindow.ClipsDescendants = true
+MainWindow.Parent = ScreenGui
+
+-- Window Border (outer frame)
+local WindowBorder = Instance.new("Frame")
+WindowBorder.Name = "Border"
+WindowBorder.Size = UDim2.new(1, 6, 1, 6)
+WindowBorder.Position = UDim2.new(0, -3, 0, -3)
+WindowBorder.BackgroundColor3 = Colors.WindowBorder
+WindowBorder.BorderSizePixel = 0
+WindowBorder.ZIndex = MainWindow.ZIndex - 1
+WindowBorder.Parent = MainWindow
+
+-- Title Bar
+local TitleBar = Instance.new("Frame")
+TitleBar.Name = "TitleBar"
+TitleBar.Size = UDim2.new(1, 0, 0, 30)
+TitleBar.BackgroundColor3 = Colors.TitleBar
+TitleBar.BorderSizePixel = 0
+TitleBar.Parent = MainWindow
+
+-- Title Bar Gradient (XP style)
+local TitleGradient = Instance.new("UIGradient")
+TitleGradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 88, 238)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(53, 147, 255))
+}
+TitleGradient.Rotation = 90
+TitleGradient.Parent = TitleBar
+
+-- Title Text
+local TitleText = Instance.new("TextLabel")
+TitleText.Size = UDim2.new(1, -100, 1, 0)
+TitleText.Position = UDim2.new(0, 8, 0, 0)
+TitleText.BackgroundTransparency = 1
+TitleText.Font = Enum.Font.SourceSansBold
+TitleText.Text = "Dusty's Universal Yield v1.0.0"
+TitleText.TextColor3 = Colors.TitleText
+TitleText.TextSize = 14
+TitleText.TextXAlignment = Enum.TextXAlignment.Left
+TitleText.Parent = TitleBar
+
+-- Window Control Buttons (Close, Minimize)
+local CloseButton = CreateXPButton(TitleBar, "×", UDim2.new(1, -25, 0, 3), UDim2.new(0, 22, 0, 24), function()
+    ScreenGui:Destroy()
+end)
+CloseButton.BackgroundColor3 = Color3.fromRGB(220, 100, 100)
+CloseButton.TextSize = 18
+CloseButton.Font = Enum.Font.SourceSansBold
+
+local MinimizeButton = CreateXPButton(TitleBar, "−", UDim2.new(1, -50, 0, 3), UDim2.new(0, 22, 0, 24), function()
+    MainWindow.Visible = not MainWindow.Visible
+end)
+MinimizeButton.TextSize = 18
+MinimizeButton.Font = Enum.Font.SourceSansBold
+
+-- Dragging Functionality
+local dragging, dragInput, dragStart, startPos
+
+TitleBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = MainWindow.Position
+        
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+TitleBar.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        local delta = input.Position - dragStart
+        MainWindow.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+-- Tab System
+local TabContainer = Instance.new("Frame")
+TabContainer.Name = "TabContainer"
+TabContainer.Size = UDim2.new(1, 0, 0, 28)
+TabContainer.Position = UDim2.new(0, 0, 0, 30)
+TabContainer.BackgroundColor3 = Colors.ButtonFace
+TabContainer.BorderSizePixel = 0
+TabContainer.Parent = MainWindow
+
+local ContentFrame = Instance.new("Frame")
+ContentFrame.Name = "ContentFrame"
+ContentFrame.Size = UDim2.new(1, -10, 1, -68)
+ContentFrame.Position = UDim2.new(0, 5, 0, 63)
+ContentFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+ContentFrame.BorderColor3 = Colors.ButtonShadow
+ContentFrame.BorderSizePixel = 1
+ContentFrame.Parent = MainWindow
+
+-- Tab System Implementation
+local Tabs = {}
+local CurrentTab = nil
+
+local function CreateTab(name, content)
+    local tabButton = Instance.new("TextButton")
+    tabButton.Size = UDim2.new(0, 100, 1, -2)
+    tabButton.Position = UDim2.new(0, #Tabs * 100, 0, 2)
+    tabButton.BackgroundColor3 = Colors.UnselectedTab
+    tabButton.BorderSizePixel = 0
+    tabButton.Font = Enum.Font.SourceSans
+    tabButton.Text = name
+    tabButton.TextColor3 = Colors.Text
+    tabButton.TextSize = 14
+    tabButton.Parent = TabContainer
+    
+    -- Tab borders
+    local topBorder = Instance.new("Frame")
+    topBorder.Size = UDim2.new(1, 0, 0, 1)
+    topBorder.BackgroundColor3 = Colors.ButtonHighlight
+    topBorder.BorderSizePixel = 0
+    topBorder.Parent = tabButton
+    
+    local leftBorder = Instance.new("Frame")
+    leftBorder.Size = UDim2.new(0, 1, 1, 0)
+    leftBorder.BackgroundColor3 = Colors.ButtonHighlight
+    leftBorder.BorderSizePixel = 0
+    leftBorder.Parent = tabButton
+    
+    local rightBorder = Instance.new("Frame")
+    rightBorder.Size = UDim2.new(0, 1, 1, 0)
+    rightBorder.Position = UDim2.new(1, -1, 0, 0)
+    rightBorder.BackgroundColor3 = Colors.ButtonShadow
+    rightBorder.BorderSizePixel = 0
+    rightBorder.Parent = tabButton
+    
+    local contentContainer = Instance.new("ScrollingFrame")
+    contentContainer.Name = name .. "Content"
+    contentContainer.Size = UDim2.new(1, 0, 1, 0)
+    contentContainer.BackgroundTransparency = 1
+    contentContainer.BorderSizePixel = 0
+    contentContainer.ScrollBarThickness = 6
+    contentContainer.Visible = false
+    contentContainer.Parent = ContentFrame
+    
+    tabButton.MouseButton1Click:Connect(function()
+        for _, tab in pairs(Tabs) do
+            tab.Button.BackgroundColor3 = Colors.UnselectedTab
+            tab.Content.Visible = false
+        end
+        tabButton.BackgroundColor3 = Colors.SelectedTab
+        contentContainer.Visible = true
+        CurrentTab = contentContainer
+    end)
+    
+    local tab = {
+        Button = tabButton,
+        Content = contentContainer
+    }
+    table.insert(Tabs, tab)
+    
+    return contentContainer
+end
+
+-- Commands Tab
+local CommandsTab = CreateTab("Commands", nil)
+
+local CommandsList = Instance.new("Frame")
+CommandsList.Size = UDim2.new(1, -10, 0, 0)
+CommandsList.BackgroundTransparency = 1
+CommandsList.Parent = CommandsTab
+
+local CommandsListLayout = Instance.new("UIListLayout")
+CommandsListLayout.Padding = UDim.new(0, 2)
+CommandsListLayout.Parent = CommandsList
+
+local CommandInput = Instance.new("TextBox")
+CommandInput.Size = UDim2.new(1, -10, 0, 25)
+CommandInput.Position = UDim2.new(0, 5, 1, -30)
+CommandInput.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+CommandInput.BorderColor3 = Colors.ButtonShadow
+CommandInput.Font = Enum.Font.SourceSans
+CommandInput.PlaceholderText = "Enter command here (prefix: " .. DUY.Prefix .. ")"
+CommandInput.Text = ""
+CommandInput.TextColor3 = Colors.Text
+CommandInput.TextSize = 14
+CommandInput.TextXAlignment = Enum.TextXAlignment.Left
+CommandInput.Parent = CommandsTab
+
+-- Script Executor Tab
+local ExecutorTab = CreateTab("Executor", nil)
+
+local ScriptBox = Instance.new("TextBox")
+ScriptBox.Size = UDim2.new(1, -10, 1, -35)
+ScriptBox.Position = UDim2.new(0, 5, 0, 5)
+ScriptBox.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+ScriptBox.BorderColor3 = Colors.ButtonShadow
+ScriptBox.Font = Enum.Font.Code
+ScriptBox.MultiLine = true
+ScriptBox.ClearTextOnFocus = false
+ScriptBox.PlaceholderText = "-- Enter Lua script here"
+ScriptBox.Text = ""
+ScriptBox.TextColor3 = Colors.Text
+ScriptBox.TextSize = 14
+ScriptBox.TextXAlignment = Enum.TextXAlignment.Left
+ScriptBox.TextYAlignment = Enum.TextYAlignment.Top
+ScriptBox.Parent = ExecutorTab
+
+local ExecuteButton = CreateXPButton(ExecutorTab, "Execute", UDim2.new(0, 5, 1, -27), UDim2.new(0, 80, 0, 23), function()
+    local script = ScriptBox.Text
+    local success, err = pcall(function()
+        loadstring(script)()
+    end)
+    if not success then
+        warn("[DUY] Execution Error:", err)
+    end
+end)
+
+local ClearButton = CreateXPButton(ExecutorTab, "Clear", UDim2.new(0, 90, 1, -27), UDim2.new(0, 80, 0, 23), function()
+    ScriptBox.Text = ""
+end)
+
+-- Player Tab
+local PlayerTab = CreateTab("Player", nil)
+
+local PlayerSettings = Instance.new("Frame")
+PlayerSettings.Size = UDim2.new(1, -10, 0, 0)
+PlayerSettings.BackgroundTransparency = 1
+PlayerSettings.Parent = PlayerTab
+
+local PlayerLayout = Instance.new("UIListLayout")
+PlayerLayout.Padding = UDim.new(0, 10)
+PlayerLayout.Parent = PlayerSettings
+
+local function CreateSlider(parent, labelText, min, max, default, callback)
+    local container = Instance.new("Frame")
+    container.Size = UDim2.new(1, 0, 0, 50)
+    container.BackgroundTransparency = 1
+    container.Parent = parent
+    
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, 0, 0, 20)
+    label.BackgroundTransparency = 1
+    label.Font = Enum.Font.SourceSans
+    label.Text = labelText .. ": " .. default
+    label.TextColor3 = Colors.Text
+    label.TextSize = 14
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = container
+    
+    local sliderBack = Instance.new("Frame")
+    sliderBack.Size = UDim2.new(1, -20, 0, 20)
+    sliderBack.Position = UDim2.new(0, 10, 0, 25)
+    sliderBack.BackgroundColor3 = Colors.ButtonFace
+    sliderBack.BorderColor3 = Colors.ButtonShadow
+    sliderBack.Parent = container
+    
+    local sliderFill = Instance.new("Frame")
+    sliderFill.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
+    sliderFill.BackgroundColor3 = Colors.TitleBar
+    sliderFill.BorderSizePixel = 0
+    sliderFill.Parent = sliderBack
+    
+    local dragging = false
+    
+    sliderBack.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            local function update()
+                local mousePos = input.Position.X
+                local sliderPos = sliderBack.AbsolutePosition.X
+                local sliderSize = sliderBack.AbsoluteSize.X
+                local relative = math.clamp((mousePos - sliderPos) / sliderSize, 0, 1)
+                local value = math.floor(min + (max - min) * relative)
+                sliderFill.Size = UDim2.new(relative, 0, 1, 0)
+                label.Text = labelText .. ": " .. value
+                callback(value)
+            end
+            update()
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local mousePos = input.Position.X
+            local sliderPos = sliderBack.AbsolutePosition.X
+            local sliderSize = sliderBack.AbsoluteSize.X
+            local relative = math.clamp((mousePos - sliderPos) / sliderSize, 0, 1)
+            local value = math.floor(min + (max - min) * relative)
+            sliderFill.Size = UDim2.new(relative, 0, 1, 0)
+            label.Text = labelText .. ": " .. value
+            callback(value)
+        end
+    end)
+    
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+    
+    return container
+end
+
+CreateSlider(PlayerSettings, "WalkSpeed", 16, 200, 16, function(value)
+    DUY.Settings.WalkSpeed = value
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+        LocalPlayer.Character.Humanoid.WalkSpeed = value
+    end
+end)
+
+CreateSlider(PlayerSettings, "JumpPower", 50, 300, 50, function(value)
+    DUY.Settings.JumpPower = value
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+        LocalPlayer.Character.Humanoid.JumpPower = value
+    end
+end)
+
+CreateSlider(PlayerSettings, "FOV", 70, 120, 70, function(value)
+    DUY.Settings.FOV = value
+    Camera.FieldOfView = value
+end)
+
+-- ESP Tab
+local ESPTab = CreateTab("ESP", nil)
+
+local ESPControls = Instance.new("Frame")
+ESPControls.Size = UDim2.new(1, -10, 0, 0)
+ESPControls.BackgroundTransparency = 1
+ESPControls.Parent = ESPTab
+
+local ESPLayout = Instance.new("UIListLayout")
+ESPLayout.Padding = UDim.new(0, 5)
+ESPLayout.Parent = ESPControls
+
+local function CreateToggle(parent, labelText, default, callback)
+    local container = Instance.new("Frame")
+    container.Size = UDim2.new(1, 0, 0, 30)
+    container.BackgroundTransparency = 1
+    container.Parent = parent
+    
+    local checkbox = CreateXPButton(container, "", UDim2.new(0, 5, 0, 3), UDim2.new(0, 24, 0, 24), nil)
+    
+    local checkmark = Instance.new("TextLabel")
+    checkmark.Size = UDim2.new(1, 0, 1, 0)
+    checkmark.BackgroundTransparency = 1
+    checkmark.Font = Enum.Font.SourceSansBold
+    checkmark.Text = default and "✓" or ""
+    checkmark.TextColor3 = Color3.fromRGB(0, 128, 0)
+    checkmark.TextSize = 18
+    checkmark.Parent = checkbox
+    
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, -40, 1, 0)
+    label.Position = UDim2.new(0, 35, 0, 0)
+    label.BackgroundTransparency = 1
+    label.Font = Enum.Font.SourceSans
+    label.Text = labelText
+    label.TextColor3 = Colors.Text
+    label.TextSize = 14
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = container
+    
+    local enabled = default
+    
+    checkbox.MouseButton1Click:Connect(function()
+        enabled = not enabled
+        checkmark.Text = enabled and "✓" or ""
+        callback(enabled)
+    end)
+    
+    return container
+end
+
+CreateToggle(ESPControls, "Player ESP (Boxes)", false, function(enabled)
+    DUY.Settings.ESP = enabled
+    if enabled then
+        DUY:EnableESP()
+    else
+        DUY:DisableESP()
+    end
+end)
+
+CreateToggle(ESPControls, "Show Names", false, function(enabled)
+    DUY.Settings.ESPNames = enabled
+end)
+
+CreateToggle(ESPControls, "Show Distance", false, function(enabled)
+    DUY.Settings.ESPDistance = enabled
+end)
+
+CreateToggle(ESPControls, "Show Health", false, function(enabled)
+    DUY.Settings.ESPHealth = enabled
+end)
+
+CreateToggle(ESPControls, "Tracers", false, function(enabled)
+    DUY.Settings.Tracers = enabled
+end)
+
+-- Remote Spy Tab
+local RemoteTab = CreateTab("Remotes", nil)
+
+local RemoteList = Instance.new("ScrollingFrame")
+RemoteList.Size = UDim2.new(1, -10, 1, -35)
+RemoteList.Position = UDim2.new(0, 5, 0, 5)
+RemoteList.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+RemoteList.BorderColor3 = Colors.ButtonShadow
+RemoteList.ScrollBarThickness = 6
+RemoteList.Parent = RemoteTab
+
+local RemoteListLayout = Instance.new("UIListLayout")
+RemoteListLayout.Padding = UDim.new(0, 2)
+RemoteListLayout.Parent = RemoteList
+
+local ClearRemotesButton = CreateXPButton(RemoteTab, "Clear Logs", UDim2.new(0, 5, 1, -27), UDim2.new(0, 100, 0, 23), function()
+    for _, child in pairs(RemoteList:GetChildren()) do
+        if child:IsA("Frame") then
+            child:Destroy()
+        end
+    end
+end)
+
+-- Game Scripts Tab
+local GameScriptsTab = CreateTab("Game Scripts", nil)
+
+local GameScriptsList = Instance.new("Frame")
+GameScriptsList.Size = UDim2.new(1, -10, 0, 0)
+GameScriptsList.BackgroundTransparency = 1
+GameScriptsList.Parent = GameScriptsTab
+
+local GameScriptsLayout = Instance.new("UIListLayout")
+GameScriptsLayout.Padding = UDim.new(0, 5)
+GameScriptsLayout.Parent = GameScriptsList
+
+-- Settings Tab
+local SettingsTab = CreateTab("Settings", nil)
+
+local SettingsList = Instance.new("Frame")
+SettingsList.Size = UDim2.new(1, -10, 0, 0)
+SettingsList.BackgroundTransparency = 1
+SettingsList.Parent = SettingsTab
+
+local SettingsLayout = Instance.new("UIListLayout")
+SettingsLayout.Padding = UDim.new(0, 10)
+SettingsLayout.Parent = SettingsList
+
+-- Command Prefix Setting
+local prefixContainer = Instance.new("Frame")
+prefixContainer.Size = UDim2.new(1, 0, 0, 50)
+prefixContainer.BackgroundTransparency = 1
+prefixContainer.Parent = SettingsList
+
+local prefixLabel = Instance.new("TextLabel")
+prefixLabel.Size = UDim2.new(1, 0, 0, 20)
+prefixLabel.BackgroundTransparency = 1
+prefixLabel.Font = Enum.Font.SourceSans
+prefixLabel.Text = "Command Prefix:"
+prefixLabel.TextColor3 = Colors.Text
+prefixLabel.TextSize = 14
+prefixLabel.TextXAlignment = Enum.TextXAlignment.Left
+prefixLabel.Parent = prefixContainer
+
+local prefixInput = Instance.new("TextBox")
+prefixInput.Size = UDim2.new(0, 50, 0, 25)
+prefixInput.Position = UDim2.new(0, 0, 0, 25)
+prefixInput.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+prefixInput.BorderColor3 = Colors.ButtonShadow
+prefixInput.Font = Enum.Font.SourceSans
+prefixInput.Text = DUY.Prefix
+prefixInput.TextColor3 = Colors.Text
+prefixInput.TextSize = 14
+prefixInput.Parent = prefixContainer
+
+prefixInput.FocusLost:Connect(function()
+    if prefixInput.Text ~= "" then
+        DUY.Prefix = prefixInput.Text
+    end
+end)
+
+-- Command System
+function DUY:AddCommand(name, aliases, description, callback)
+    local cmd = {
+        Name = name:lower(),
+        Aliases = aliases or {},
+        Description = description or "No description provided",
+        Callback = callback
+    }
+    table.insert(self.Commands, cmd)
+    
+    -- Add to commands list UI
+    local cmdFrame = Instance.new("Frame")
+    cmdFrame.Size = UDim2.new(1, 0, 0, 60)
+    cmdFrame.BackgroundColor3 = Colors.ButtonFace
+    cmdFrame.BorderColor3 = Colors.ButtonShadow
+    cmdFrame.BorderSizePixel = 1
+    cmdFrame.Parent = CommandsList
+    
+    local cmdName = Instance.new("TextLabel")
+    cmdName.Size = UDim2.new(1, -10, 0, 20)
+    cmdName.Position = UDim2.new(0, 5, 0, 5)
+    cmdName.BackgroundTransparency = 1
+    cmdName.Font = Enum.Font.SourceSansBold
+    cmdName.Text = self.Prefix .. name
+    cmdName.TextColor3 = Colors.Text
+    cmdName.TextSize = 14
+    cmdName.TextXAlignment = Enum.TextXAlignment.Left
+    cmdName.Parent = cmdFrame
+    
+    local cmdDesc = Instance.new("TextLabel")
+    cmdDesc.Size = UDim2.new(1, -10, 0, 30)
+    cmdDesc.Position = UDim2.new(0, 5, 0, 25)
+    cmdDesc.BackgroundTransparency = 1
+    cmdDesc.Font = Enum.Font.SourceSans
+    cmdDesc.Text = description
+    cmdDesc.TextColor3 = Color3.fromRGB(100, 100, 100)
+    cmdDesc.TextSize = 12
+    cmdDesc.TextXAlignment = Enum.TextXAlignment.Left
+    cmdDesc.TextYAlignment = Enum.TextYAlignment.Top
+    cmdDesc.TextWrapped = true
+    cmdDesc.Parent = cmdFrame
+    
+    CommandsList.Size = UDim2.new(1, -10, 0, CommandsListLayout.AbsoluteContentSize.Y)
+    CommandsTab.CanvasSize = UDim2.new(1, 0, 0, CommandsListLayout.AbsoluteContentSize.Y + 40)
+end
+
+function DUY:ExecuteCommand(input)
+    if not input:sub(1, 1) == self.Prefix then return false end
+    
+    local args = input:sub(2):split(" ")
+    local cmdName = args[1]:lower()
+    table.remove(args, 1)
+    
+    for _, cmd in pairs(self.Commands) do
+        if cmd.Name == cmdName then
+            local success, err = pcall(function()
+                cmd.Callback(args)
+            end)
+            if not success then
+                warn("[DUY] Command Error:", err)
+            end
+            return true
+        end
+        for _, alias in pairs(cmd.Aliases) do
+            if alias:lower() == cmdName then
+                local success, err = pcall(function()
+                    cmd.Callback(args)
+                end)
+                if not success then
+                    warn("[DUY] Command Error:", err)
+                end
+                return true
+            end
+        end
+    end
+    
+    warn("[DUY] Command not found:", cmdName)
+    return false
+end
+
+CommandInput.FocusLost:Connect(function(enterPressed)
+    if enterPressed and CommandInput.Text ~= "" then
+        DUY:ExecuteCommand(CommandInput.Text)
+        CommandInput.Text = ""
+    end
+end)
+
+-- ESP System
+function DUY:CreateESP(player)
+    if player == LocalPlayer then return end
+    
+    local ESPFolder = Instance.new("Folder")
+    ESPFolder.Name = "ESP_" .. player.Name
+    ESPFolder.Parent = CoreGui
+    
+    self.ESPObjects[player] = ESPFolder
+    
+    local function createBox()
+        if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then return end
+        
+        local hrp = player.Character.HumanoidRootPart
+        
+        -- Box ESP
+        local box = Drawing.new("Square")
+        box.Visible = false
+        box.Color = Color3.fromRGB(255, 0, 0)
+        box.Thickness = 2
+        box.Transparency = 1
+        box.Filled = false
+        
+        -- Name
+        local nameTag = Drawing.new("Text")
+        nameTag.Visible = false
+        nameTag.Color = Color3.fromRGB(255, 255, 255)
+        nameTag.Size = 16
+        nameTag.Center = true
+        nameTag.Outline = true
+        nameTag.Text = player.Name
+        
+        -- Distance
+        local distanceTag = Drawing.new("Text")
+        distanceTag.Visible = false
+        distanceTag.Color = Color3.fromRGB(255, 255, 255)
+        distanceTag.Size = 14
+        distanceTag.Center = true
+        distanceTag.Outline = true
+        
+        -- Health Bar
+        local healthBarOutline = Drawing.new("Square")
+        healthBarOutline.Visible = false
+        healthBarOutline.Color = Color3.fromRGB(0, 0, 0)
+        healthBarOutline.Thickness = 1
+        healthBarOutline.Transparency = 1
+        healthBarOutline.Filled = false
+        
+        local healthBarFill = Drawing.new("Square")
+        healthBarFill.Visible = false
+        healthBarFill.Color = Color3.fromRGB(0, 255, 0)
+        healthBarFill.Thickness = 1
+        healthBarFill.Transparency = 0.5
+        healthBarFill.Filled = true
+        
+        -- Tracer
+        local tracer = Drawing.new("Line")
+        tracer.Visible = false
+        tracer.Color = Color3.fromRGB(255, 0, 0)
+        tracer.Thickness = 1
+        tracer.Transparency = 0.7
+        
+        local connection
+        connection = RunService.RenderStepped:Connect(function()
+            if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") or not player.Character:FindFirstChild("Humanoid") or not DUY.Settings.ESP then
+                box.Visible = false
+                nameTag.Visible = false
+                distanceTag.Visible = false
+                healthBarOutline.Visible = false
+                healthBarFill.Visible = false
+                tracer.Visible = false
+                if not player.Character then
+                    connection:Disconnect()
+                end
+                return
+            end
+            
+            local hrp = player.Character.HumanoidRootPart
+            local humanoid = player.Character.Humanoid
+            local head = player.Character:FindFirstChild("Head")
+            
+            local vector, onScreen = Camera:WorldToViewportPoint(hrp.Position)
+            
+            if onScreen then
+                local headPos = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0))
+                local legPos = Camera:WorldToViewportPoint(hrp.Position - Vector3.new(0, 3, 0))
+                
+                local height = math.abs(headPos.Y - legPos.Y)
+                local width = height / 2
+                
+                box.Size = Vector2.new(width, height)
+                box.Position = Vector2.new(vector.X - width / 2, vector.Y - height / 2)
+                box.Visible = true
+                
+                if DUY.Settings.ESPNames then
+                    nameTag.Position = Vector2.new(vector.X, headPos.Y - 20)
+                    nameTag.Visible = true
+                else
+                    nameTag.Visible = false
+                end
+                
+                if DUY.Settings.ESPDistance then
+                    local distance = math.floor((LocalPlayer.Character.HumanoidRootPart.Position - hrp.Position).Magnitude)
+                    distanceTag.Text = distance .. " studs"
+                    distanceTag.Position = Vector2.new(vector.X, legPos.Y + 5)
+                    distanceTag.Visible = true
+                else
+                    distanceTag.Visible = false
+                end
+                
+                if DUY.Settings.ESPHealth then
+                    local healthPercent = humanoid.Health / humanoid.MaxHealth
+                    healthBarOutline.Size = Vector2.new(4, height)
+                    healthBarOutline.Position = Vector2.new(box.Position.X - 8, box.Position.Y)
+                    healthBarOutline.Visible = true
+                    
+                    healthBarFill.Size = Vector2.new(2, height * healthPercent)
+                    healthBarFill.Position = Vector2.new(box.Position.X - 7, box.Position.Y + height * (1 - healthPercent))
+                    healthBarFill.Color = Color3.fromRGB(255 * (1 - healthPercent), 255 * healthPercent, 0)
+                    healthBarFill.Visible = true
+                else
+                    healthBarOutline.Visible = false
+                    healthBarFill.Visible = false
+                end
+                
+                if DUY.Settings.Tracers then
+                    tracer.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+                    tracer.To = Vector2.new(vector.X, vector.Y)
+                    tracer.Visible = true
+                else
+                    tracer.Visible = false
+                end
+            else
+                box.Visible = false
+                nameTag.Visible = false
+                distanceTag.Visible = false
+                healthBarOutline.Visible = false
+                healthBarFill.Visible = false
+                tracer.Visible = false
+            end
+        end)
+        
+        player.CharacterRemoving:Connect(function()
+            connection:Disconnect()
+            box:Remove()
+            nameTag:Remove()
+            distanceTag:Remove()
+            healthBarOutline:Remove()
+            healthBarFill:Remove()
+            tracer:Remove()
+        end)
+    end
+    
+    if player.Character then
+        createBox()
+    end
+    
+    player.CharacterAdded:Connect(function()
+        wait(0.1)
+        createBox()
+    end)
+end
+
+function DUY:EnableESP()
+    for _, player in pairs(Players:GetPlayers()) do
+        if not self.ESPObjects[player] then
+            self:CreateESP(player)
+        end
+    end
+end
+
+function DUY:DisableESP()
+    for player, folder in pairs(self.ESPObjects) do
+        if folder then
+            folder:Destroy()
+        end
+    end
+    self.ESPObjects = {}
+end
+
+Players.PlayerAdded:Connect(function(player)
+    if DUY.Settings.ESP then
+        DUY:CreateESP(player)
+    end
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+    if DUY.ESPObjects[player] then
+        DUY.ESPObjects[player]:Destroy()
+        DUY.ESPObjects[player] = nil
+    end
+end)
+
+-- Remote Spy System
+local RemoteLogs = {}
+
+local oldNamecall
+oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
+    local method = getnamecallmethod()
+    local args = {...}
+    
+    if (method == "FireServer" or method == "InvokeServer") and DUY.Settings.RemoteSpy then
+        local log = {
+            Remote = self,
+            Method = method,
+            Args = args,
+            Time = os.date("%H:%M:%S")
+        }
+        table.insert(RemoteLogs, log)
+        
+        -- Add to UI
+        local logFrame = Instance.new("Frame")
+        logFrame.Size = UDim2.new(1, -10, 0, 80)
+        logFrame.BackgroundColor3 = Colors.ButtonFace
+        logFrame.BorderColor3 = Colors.ButtonShadow
+        logFrame.BorderSizePixel = 1
+        logFrame.Parent = RemoteList
+        
+        local remoteName = Instance.new("TextLabel")
+        remoteName.Size = UDim2.new(1, -10, 0, 20)
+        remoteName.Position = UDim2.new(0, 5, 0, 5)
+        remoteName.BackgroundTransparency = 1
+        remoteName.Font = Enum.Font.SourceSansBold
+        remoteName.Text = self.Name .. " (" .. method .. ")"
+        remoteName.TextColor3 = Colors.Text
+        remoteName.TextSize = 13
+        remoteName.TextXAlignment = Enum.TextXAlignment.Left
+        remoteName.Parent = logFrame
+        
+        local timeLabel = Instance.new("TextLabel")
+        timeLabel.Size = UDim2.new(1, -10, 0, 15)
+        timeLabel.Position = UDim2.new(0, 5, 0, 25)
+        timeLabel.BackgroundTransparency = 1
+        timeLabel.Font = Enum.Font.SourceSans
+        timeLabel.Text = "Time: " .. log.Time
+        timeLabel.TextColor3 = Color3.fromRGB(100, 100, 100)
+        timeLabel.TextSize = 11
+        timeLabel.TextXAlignment = Enum.TextXAlignment.Left
+        timeLabel.Parent = logFrame
+        
+        local pathLabel = Instance.new("TextLabel")
+        pathLabel.Size = UDim2.new(1, -10, 0, 35)
+        pathLabel.Position = UDim2.new(0, 5, 0, 40)
+        pathLabel.BackgroundTransparency = 1
+        pathLabel.Font = Enum.Font.SourceSans
+        pathLabel.Text = "Path: " .. self:GetFullName()
+        pathLabel.TextColor3 = Color3.fromRGB(80, 80, 80)
+        pathLabel.TextSize = 10
+        pathLabel.TextXAlignment = Enum.TextXAlignment.Left
+        pathLabel.TextYAlignment = Enum.TextYAlignment.Top
+        pathLabel.TextWrapped = true
+        pathLabel.Parent = logFrame
+        
+        RemoteList.CanvasSize = UDim2.new(1, 0, 0, RemoteListLayout.AbsoluteContentSize.Y)
+    end
+    
+    return oldNamecall(self, ...)
+end))
+
+-- FE "Bypass" Workarounds
+local FEBypass = {}
+
+function FEBypass:ToolToCharacter(tool)
+    -- Uses tools/accessories as "anchors" for client-side rendered objects
+    -- These can replicate visually to other players in some games
+    if not tool:IsA("Tool") then return end
+    
+    tool.Parent = LocalPlayer.Character
+    tool.Grip = CFrame.new(0, 0, 0)
+    tool.GripForward = Vector3.new(0, 0, -1)
+    tool.GripRight = Vector3.new(1, 0, 0)
+    tool.GripUp = Vector3.new(0, 1, 0)
+end
+
+function FEBypass:CreateFakeCharacter()
+    -- Creates a client-side character clone for animations
+    local fakeChar = LocalPlayer.Character:Clone()
+    fakeChar.Parent = Workspace
+    fakeChar.Name = "FakeCharacter"
+    
+    for _, part in pairs(fakeChar:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.CanCollide = false
+            part.Transparency = 0.5
+        end
+    end
+    
+    return fakeChar
+end
+
+function FEBypass:ReplicatePosition(target)
+    -- Attempts to replicate position through HumanoidRootPart manipulation
+    -- Works in some games with specific network ownership
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        LocalPlayer.Character.HumanoidRootPart.CFrame = target
+    end
+end
+
+-- Core Commands
+DUY:AddCommand("fly", {"f"}, "Toggle flight mode with WASD controls", function(args)
+    local speed = tonumber(args[1]) or 50
+    
+    if DUY.Settings.Fly then
+        DUY.Settings.Fly = false
+        if DUY.Connections.Fly then
+            DUY.Connections.Fly:Disconnect()
+        end
+        if DUY.FlyBodyVelocity then
+            DUY.FlyBodyVelocity:Destroy()
+        end
+        if DUY.FlyBodyGyro then
+            DUY.FlyBodyGyro:Destroy()
+        end
+        return
+    end
+    
+    DUY.Settings.Fly = true
+    
+    local character = LocalPlayer.Character
+    if not character then return end
+    
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    
+    if not humanoid or not rootPart then return end
+    
+    local bodyVel = Instance.new("BodyVelocity")
+    bodyVel.MaxForce = Vector3.new(100000, 100000, 100000)
+    bodyVel.Velocity = Vector3.new(0, 0, 0)
+    bodyVel.Parent = rootPart
+    
+    local bodyGyro = Instance.new("BodyGyro")
+    bodyGyro.MaxTorque = Vector3.new(100000, 100000, 100000)
+    bodyGyro.CFrame = rootPart.CFrame
+    bodyGyro.Parent = rootPart
+    
+    DUY.FlyBodyVelocity = bodyVel
+    DUY.FlyBodyGyro = bodyGyro
+    
+    DUY.Connections.Fly = RunService.RenderStepped:Connect(function()
+        if not DUY.Settings.Fly or not character or not rootPart then return end
+        
+        local moveDirection = Vector3.new(0, 0, 0)
+        
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+            moveDirection = moveDirection + (Camera.CFrame.LookVector)
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+            moveDirection = moveDirection - (Camera.CFrame.LookVector)
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+            moveDirection = moveDirection - (Camera.CFrame.RightVector)
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+            moveDirection = moveDirection + (Camera.CFrame.RightVector)
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+            moveDirection = moveDirection + Vector3.new(0, 1, 0)
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
+            moveDirection = moveDirection - Vector3.new(0, 1, 0)
+        end
+        
+        bodyVel.Velocity = moveDirection * speed
+        bodyGyro.CFrame = Camera.CFrame
+    end)
+end)
+
+DUY:AddCommand("noclip", {"nc"}, "Toggle noclip mode", function(args)
+    DUY.Settings.Noclip = not DUY.Settings.Noclip
+    
+    if DUY.Settings.Noclip then
+        DUY.Connections.Noclip = RunService.Stepped:Connect(function()
+            if LocalPlayer.Character then
+                for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = false
+                    end
+                end
+            end
+        end)
+    else
+        if DUY.Connections.Noclip then
+            DUY.Connections.Noclip:Disconnect()
+        end
+    end
+end)
+
+DUY:AddCommand("tp", {"teleport"}, "Teleport to a player (username or display name)", function(args)
+    if not args[1] then return end
+    
+    local targetName = args[1]:lower()
+    local targetPlayer = nil
+    
+    for _, player in pairs(Players:GetPlayers()) do
+        if player.Name:lower():find(targetName) or player.DisplayName:lower():find(targetName) then
+            targetPlayer = player
+            break
+        end
+    end
+    
+    if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            LocalPlayer.Character.HumanoidRootPart.CFrame = targetPlayer.Character.HumanoidRootPart.CFrame
+        end
+    end
+end)
+
+DUY:AddCommand("god", {}, "Toggle god mode (infinite health)", function(args)
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+        local humanoid = LocalPlayer.Character.Humanoid
+        
+        if humanoid.MaxHealth == math.huge then
+            humanoid.MaxHealth = 100
+            humanoid.Health = 100
+        else
+            humanoid.MaxHealth = math.huge
+            humanoid.Health = math.huge
+        end
+    end
+end)
+
+DUY:AddCommand("infjump", {"ij"}, "Toggle infinite jump", function(args)
+    DUY.Settings.InfiniteJump = not DUY.Settings.InfiniteJump
+    
+    if DUY.Settings.InfiniteJump then
+        DUY.Connections.InfiniteJump = UserInputService.JumpRequest:Connect(function()
+            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+                LocalPlayer.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+            end
+        end)
+    else
+        if DUY.Connections.InfiniteJump then
+            DUY.Connections.InfiniteJump:Disconnect()
+        end
+    end
+end)
+
+DUY:AddCommand("ws", {"walkspeed"}, "Set walkspeed (number)", function(args)
+    local speed = tonumber(args[1]) or 16
+    DUY.Settings.WalkSpeed = speed
+    
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+        LocalPlayer.Character.Humanoid.WalkSpeed = speed
+    end
+end)
+
+DUY:AddCommand("jp", {"jumppower"}, "Set jump power (number)", function(args)
+    local power = tonumber(args[1]) or 50
+    DUY.Settings.JumpPower = power
+    
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+        LocalPlayer.Character.Humanoid.JumpPower = power
+    end
+end)
+
+DUY:AddCommand("fov", {}, "Set field of view (number between 1-120)", function(args)
+    local fov = tonumber(args[1]) or 70
+    fov = math.clamp(fov, 1, 120)
+    DUY.Settings.FOV = fov
+    Camera.FieldOfView = fov
+end)
+
+DUY:AddCommand("esp", {}, "Toggle ESP (boxes around players)", function(args)
+    DUY.Settings.ESP = not DUY.Settings.ESP
+    
+    if DUY.Settings.ESP then
+        DUY:EnableESP()
+    else
+        DUY:DisableESP()
+    end
+end)
+
+DUY:AddCommand("fullbright", {"fb"}, "Toggle fullbright (maximum brightness)", function(args)
+    if Lighting.Ambient == Color3.fromRGB(255, 255, 255) then
+        Lighting.Ambient = Color3.fromRGB(0, 0, 0)
+        Lighting.ColorShift_Bottom = Color3.fromRGB(0, 0, 0)
+        Lighting.ColorShift_Top = Color3.fromRGB(0, 0, 0)
+    else
+        Lighting.Ambient = Color3.fromRGB(255, 255, 255)
+        Lighting.ColorShift_Bottom = Color3.fromRGB(255, 255, 255)
+        Lighting.ColorShift_Top = Color3.fromRGB(255, 255, 255)
+    end
+end)
+
+DUY:AddCommand("goto", {"to"}, "Teleport to coordinates (x, y, z)", function(args)
+    local x = tonumber(args[1])
+    local y = tonumber(args[2])
+    local z = tonumber(args[3])
+    
+    if x and y and z and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(x, y, z)
+    end
+end)
+
+DUY:AddCommand("btools", {}, "Gives you building tools (FE limited)", function(args)
+    local tools = {
+        Instance.new("HopperBin"),
+        Instance.new("HopperBin"),
+        Instance.new("HopperBin")
+    }
+    
+    tools[1].BinType = "GameTool"
+    tools[2].BinType = "Clone"
+    tools[3].BinType = "Hammer"
+    
+    for _, tool in pairs(tools) do
+        tool.Parent = LocalPlayer.Backpack
+    end
+end)
+
+DUY:AddCommand("sit", {}, "Makes your character sit", function(args)
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+        LocalPlayer.Character.Humanoid.Sit = true
+    end
+end)
+
+DUY:AddCommand("swim", {}, "Toggle swim mode in air", function(args)
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+        local humanoid = LocalPlayer.Character.Humanoid
+        humanoid:SetStateEnabled(Enum.HumanoidStateType.Swimming, true)
+        humanoid:ChangeState(Enum.HumanoidStateType.Swimming)
+    end
+end)
+
+DUY:AddCommand("removetools", {"rtools"}, "Remove all tools from your character", function(args)
+    for _, tool in pairs(LocalPlayer.Character:GetChildren()) do
+        if tool:IsA("Tool") then
+            tool:Destroy()
+        end
+    end
+    for _, tool in pairs(LocalPlayer.Backpack:GetChildren()) do
+        tool:Destroy()
+    end
+end)
+
+DUY:AddCommand("reset", {"re"}, "Reset your character", function(args)
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+        LocalPlayer.Character.Humanoid.Health = 0
+    end
+end)
+
+DUY:AddCommand("respawn", {}, "Respawn your character (better than reset)", function(args)
+    local oldPos = nil
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        oldPos = LocalPlayer.Character.HumanoidRootPart.CFrame
+    end
+    
+    LocalPlayer.Character:BreakJoints()
+    
+    LocalPlayer.CharacterAdded:Wait()
+    wait(0.1)
+    
+    if oldPos and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        LocalPlayer.Character.HumanoidRootPart.CFrame = oldPos
+    end
+end)
+
+DUY:AddCommand("freeze", {"fr"}, "Freeze your character in place", function(args)
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local hrp = LocalPlayer.Character.HumanoidRootPart
+        hrp.Anchored = not hrp.Anchored
+    end
+end)
+
+DUY:AddCommand("invisible", {"invis"}, "Make yourself invisible (FE method)", function(args)
+    if not LocalPlayer.Character then return end
+    
+    LocalPlayer.Character.Archivable = true
+    local clone = LocalPlayer.Character:Clone()
+    clone.Parent = Workspace
+    clone.HumanoidRootPart.CFrame = LocalPlayer.Character.HumanoidRootPart.CFrame
+    
+    for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+        if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+            part.Transparency = 1
+        end
+        if part:IsA("Accessory") then
+            part:Destroy()
+        end
+    end
+    
+    wait(0.1)
+    clone:Destroy()
+end)
+
+DUY:AddCommand("visible", {"vis"}, "Make yourself visible again", function(args)
+    if not LocalPlayer.Character then return end
+    
+    for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+        if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+            part.Transparency = 0
+        end
+    end
+end)
+
+DUY:AddCommand("bring", {}, "Bring a player to you (FE limited, visual only)", function(args)
+    if not args[1] then return end
+    
+    local targetName = args[1]:lower()
+    local targetPlayer = nil
+    
+    for _, player in pairs(Players:GetPlayers()) do
+        if player.Name:lower():find(targetName) or player.DisplayName:lower():find(targetName) then
+            targetPlayer = player
+            break
+        end
+    end
+    
+    if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            -- Client-side only, creates the illusion
+            targetPlayer.Character.HumanoidRootPart.CFrame = LocalPlayer.Character.HumanoidRootPart.CFrame
+        end
+    end
+end)
+
+DUY:AddCommand("spamchat", {"spam"}, "Spam a message in chat (message, times)", function(args)
+    if #args < 2 then return end
+    
+    local times = tonumber(args[#args]) or 5
+    table.remove(args, #args)
+    local message = table.concat(args, " ")
+    
+    for i = 1, times do
+        game:GetService("ReplicatedStorage").DefaultChatSystemChatEvents.SayMessageRequest:FireServer(message, "All")
+        wait(0.5)
+    end
+end)
+
+DUY:AddCommand("clearws", {"clearworkspace"}, "Clear the workspace (client-side)", function(args)
+    for _, obj in pairs(Workspace:GetChildren()) do
+        if not obj:IsA("Terrain") and not obj:IsA("Camera") and not Players:GetPlayerFromCharacter(obj) then
+            obj:Destroy()
+        end
+    end
+end)
+
+DUY:AddCommand("fogoff", {"nofog"}, "Remove fog", function(args)
+    Lighting.FogEnd = 100000
+    Lighting.FogStart = 0
+end)
+
+DUY:AddCommand("day", {}, "Set time to day", function(args)
+    Lighting.ClockTime = 14
+end)
+
+DUY:AddCommand("night", {}, "Set time to night", function(args)
+    Lighting.ClockTime = 0
+end)
+
+DUY:AddCommand("freecam", {"fc"}, "Toggle free camera", function(args)
+    if DUY.Settings.Freecam then
+        DUY.Settings.Freecam = false
+        Camera.CameraType = Enum.CameraType.Custom
+        Camera.CameraSubject = LocalPlayer.Character.Humanoid
+        return
+    end
+    
+    DUY.Settings.Freecam = true
+    Camera.CameraType = Enum.CameraType.Fixed
+    
+    local speed = 50
+    
+    RunService.RenderStepped:Connect(function()
+        if not DUY.Settings.Freecam then return end
+        
+        local moveDirection = Vector3.new(0, 0, 0)
+        
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+            moveDirection = moveDirection + (Camera.CFrame.LookVector)
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+            moveDirection = moveDirection - (Camera.CFrame.LookVector)
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+            moveDirection = moveDirection - (Camera.CFrame.RightVector)
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+            moveDirection = moveDirection + (Camera.CFrame.RightVector)
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+            moveDirection = moveDirection + Vector3.new(0, 1, 0)
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
+            moveDirection = moveDirection - Vector3.new(0, 1, 0)
+        end
+        
+        Camera.CFrame = Camera.CFrame + (moveDirection * speed * 0.016)
+    end)
+end)
+
+DUY:AddCommand("killgui", {"destroygui", "removegui"}, "Destroys the Dusty's Universal Yield GUI", function(args)
+    ScreenGui:Destroy()
+end)
+
+DUY:AddCommand("remotespy", {"rspy"}, "Toggle remote spy", function(args)
+    DUY.Settings.RemoteSpy = not DUY.Settings.RemoteSpy
+end)
+
+DUY:AddCommand("clicktp", {"ctp"}, "Toggle click to teleport (hold CTRL and click)", function(args)
+    DUY.Settings.ClickTP = not DUY.Settings.ClickTP
+    
+    if DUY.Settings.ClickTP then
+        DUY.Connections.ClickTP = Mouse.Button1Down:Connect(function()
+            if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
+                if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                    LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(Mouse.Hit.Position)
+                end
+            end
+        end)
+    else
+        if DUY.Connections.ClickTP then
+            DUY.Connections.ClickTP:Disconnect()
+        end
+    end
+end)
+
+-- Activate first tab
+if #Tabs > 0 then
+    Tabs[1].Button.MouseButton1Click:Fire()
+end
+
+-- Notification System
+local NotificationFrame = Instance.new("Frame")
+NotificationFrame.Size = UDim2.new(0, 300, 0, 60)
+NotificationFrame.Position = UDim2.new(0.5, -150, 0, -70)
+NotificationFrame.BackgroundColor3 = Colors.WindowBackground
+NotificationFrame.BorderSizePixel = 0
+NotificationFrame.Parent = ScreenGui
+
+local NotificationBorder = Instance.new("Frame")
+NotificationBorder.Size = UDim2.new(1, 4, 1, 4)
+NotificationBorder.Position = UDim2.new(0, -2, 0, -2)
+NotificationBorder.BackgroundColor3 = Colors.WindowBorder
+NotificationBorder.BorderSizePixel = 0
+NotificationBorder.ZIndex = NotificationFrame.ZIndex - 1
+NotificationBorder.Parent = NotificationFrame
+
+local NotificationText = Instance.new("TextLabel")
+NotificationText.Size = UDim2.new(1, -10, 1, -10)
+NotificationText.Position = UDim2.new(0, 5, 0, 5)
+NotificationText.BackgroundTransparency = 1
+NotificationText.Font = Enum.Font.SourceSansBold
+NotificationText.Text = "Dusty's Universal Yield loaded!"
+NotificationText.TextColor3 = Colors.Text
+NotificationText.TextSize = 16
+NotificationText.TextWrapped = true
+NotificationText.Parent = NotificationFrame
+
+-- Slide in notification
+TweenService:Create(NotificationFrame, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+    Position = UDim2.new(0.5, -150, 0, 20)
+}):Play()
+
+wait(3)
+
+-- Slide out notification
+TweenService:Create(NotificationFrame, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
+    Position = UDim2.new(0.5, -150, 0, -70)
+}):Play()
+
+-- Print confirmation
+print("[DUY] Dusty's Universal Yield v1.0.0 loaded successfully!")
+print("[DUY] Prefix: " .. DUY.Prefix)
+print("[DUY] Commands loaded: " .. #DUY.Commands)
+print("[DUY] Type '" .. DUY.Prefix .. "help' for a list of commands (coming soon!)")
