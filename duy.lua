@@ -1,10 +1,3 @@
---[[
-    Dusty's Universal Yield
-    Version 1.0.0
-    The most comprehensive universal script hub
-    Windows XP Styled UI
-]]
-
 local DUY = {
     Version = "1.0.0",
     Prefix = ";",
